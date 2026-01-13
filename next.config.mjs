@@ -1,30 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
-    output: 'standalone',
-    typescript: { ignoreBuildErrors: true },
-    eslint: { ignoreDuringBuilds: true },
-
-    // 1. THIS FIXES THE VERCEL CHATBOT
-    async headers() {
-        return [
-            {
-                source: '/(.*)',
-                headers: [
-                    {
-                        key: 'Cross-Origin-Opener-Policy',
-                        value: 'same-origin',
-                    },
-                    {
-                        key: 'Cross-Origin-Embedder-Policy',
-                        value: 'require-corp',
-                    },
-                ],
-            },
-        ];
+    output: 'standalone', 
+    
+    typescript: {
+        ignoreBuildErrors: true,
+    },
+    eslint: {
+        ignoreDuringBuilds: true,
     },
 
     webpack: (config) => {
+        // Blocks server-side libs from breaking client build
         config.resolve.alias = {
             ...config.resolve.alias,
             "sharp$": false,
