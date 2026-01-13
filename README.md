@@ -1,49 +1,172 @@
-# Nexus Deploy
+Based on our previous conversations, I know **Nexus** is your **Local-First RAG (Retrieval Augmented Generation)** application.
 
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
+Because it is "Local-First," this README focuses on **privacy, local model setup (e.g., Ollama/Llama.cpp), and offline capabilities**, which are the key selling points of your system.
 
-> **A streamlined deployment utility for pushing artifacts to Sonatype Nexus Repository Manager.**
-
-`nexus-deploy` simplifies the process of uploading build artifacts (JARs, Docker images, npm packages, etc.) to a Nexus instance. It is designed to be easily integrated into CI/CD pipelines like GitHub Actions, Jenkins, or GitLab CI.
-
-## 📖 Table of Contents
-- [Features](#-features)
-- [Prerequisites](#-prerequisites)
-- [Installation](#-installation)
-- [Configuration](#-configuration)
-- [Usage](#-usage)
-- [CI/CD Integration](#-cicd-integration)
-- [Troubleshooting](#-troubleshooting)
-- [Contributing](#-contributing)
-- [License](#-license)
+Here is the README tailored specifically for the **Nexus RAG System**.
 
 ---
 
-## ✨ Features
-* 🚀 **Simple CLI:** Upload artifacts with a single command.
-* 🔐 **Secure Auth:** Supports token-based and credential-based authentication.
-* 📦 **Multi-Format Support:** Works with [Maven / npm / Docker / Raw] repositories.
-* 🤖 **CI/CD Ready:** Zero-config exit codes for pipeline integration.
-* 📝 **Logging:** Detailed verbose logs for debugging deployment failures.
+### **README.md Code**
+
+Copy the following directly into your repository.
+
+```markdown
+# Nexus
+
+![License](https://img.shields.io/badge/license-MIT-blue.svg) ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![Status](https://img.shields.io/badge/status-alpha-orange)
+
+> **A Local-First RAG (Retrieval Augmented Generation) Engine for private, secure, and offline knowledge retrieval.**
+
+## 📖 About Nexus
+Nexus is designed to bridge the gap between your personal data and Large Language Models (LLMs) without sending a single byte to the cloud. By running the entire RAG pipeline locally, Nexus ensures:
+
+1.  **Privacy:** Your documents (PDFs, Markdown, Text) never leave your machine.
+2.  **Security:** No external API keys required; you own the model and the data.
+3.  **Availability:** Works completely offline.
+
+It ingests your local knowledge base, creates vector embeddings locally, and uses a local LLM to answer questions based on your data.
+
+## ✨ Key Features
+* **📂 Universal Ingestion:** Support for `.pdf`, `.md`, `.txt`, and `.docx` files.
+* **🧠 Local Inference:** Built to integrate seamlessly with [Ollama](https://ollama.ai/) or local GGUF models.
+* **⚡ High-Performance Retrieval:** Uses local vector stores (e.g., ChromaDB/FAISS) for millisecond-latency searches.
+* **🔒 Zero-Data Leakage:** Designed for sensitive environments (legal, medical, or personal journaling).
 
 ---
 
-## 📋 Prerequisites
-Before using `nexus-deploy`, ensure you have:
-* A running instance of **Sonatype Nexus Repository Manager** (v3.x recommended).
-* A valid user account with `nx-component-upload` privileges.
-* **[Language Requirement]** (e.g., Python 3.8+, Node.js 16+, or Go installed).
+## 🏗 Architecture
+
+The system follows a standard RAG topology optimized for local execution:
+
+```mermaid
+graph LR
+    A[User Documents] -->|Ingest| B(Text Splitter)
+    B -->|Embed| C(Local Vector DB)
+    D[User Query] -->|Embed| C
+    C -->|Retrieve Context| E[Local LLM]
+    E -->|Generate Answer| F[User Interface]
+
+```
+
+## 🛠 Tech Stack
+
+* **Core:** Python
+* **LLM Runtime:** [Ollama / Llama.cpp]
+* **Orchestration:** [LangChain / LlamaIndex]
+* **Vector Database:** [ChromaDB / FAISS]
+* **Embeddings:** [HuggingFace Embeddings (all-MiniLM-L6-v2)]
 
 ---
 
-## 🛠 Installation
+## 🚀 Getting Started
 
-### Option 1: Install via Package Manager (Recommended)
+### Prerequisites
+
+1. **Python 3.10+** installed.
+2. **[Ollama](https://ollama.ai/)** (or your preferred local model runner) installed and running.
 ```bash
-# Example if your tool is an npm package
-npm install -g nexus-deploy
+# Example: Pull the mistral model
+ollama pull mistral
 
-# Example if it's a Python script
-pip install nexus-deploy
+```
+
+
+
+### Installation
+
+1. **Clone the Repository**
+```bash
+git clone [https://github.com/loterrr/nexus-deploy.git](https://github.com/loterrr/nexus-deploy.git)
+cd nexus-deploy
+
+```
+
+
+2. **Create a Virtual Environment**
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+```
+
+
+3. **Install Dependencies**
+```bash
+pip install -r requirements.txt
+
+```
+
+
+4. **Set Environment Variables**
+Copy the example env file:
+```bash
+cp .env.example .env
+
+```
+
+
+*Update the `.env` file to point to your local model URL (usually `http://localhost:11434` for Ollama).*
+
+---
+
+## 💡 Usage
+
+### 1. Ingest Documents
+
+Load your knowledge base into the vector store. Place your files in the `/data` directory and run:
+
+```bash
+python nexus.py --ingest --dir ./data
+
+```
+
+### 2. Start the Chat Interface
+
+Run the main application to start chatting with your data:
+
+```bash
+python nexus.py --chat
+
+```
+
+*Optional: If you have a web UI (e.g., Streamlit/Gradio)*
+
+```bash
+streamlit run app.py
+
+```
+
+---
+
+## 🗺 Roadmap
+
+* [x] Basic Document Ingestion (PDF/Text)
+* [x] Local Vector Store integration
+* [ ] **Web UI Implementation** (React/Next.js)
+* [ ] Multi-Model Support (Switch between Mistral/Llama3)
+* [ ] Chat History / Memory persistence
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please look at the `issues` tab for "good first issues".
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/NewFeature`)
+3. Commit your Changes (`git commit -m 'Add NewFeature'`)
+4. Push to the Branch (`git push origin feature/NewFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+```
+
+### **Recommended Next Step**
+Since this is a RAG system, the **"Tech Stack"** section is critical.
+
+**Would you like me to generate a `requirements.txt` file** that matches this README (including libraries like `langchain`, `chromadb`, `pypdf`, etc.) so users can actually run the installation step?
+
+```
