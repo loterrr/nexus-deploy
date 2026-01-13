@@ -15,13 +15,12 @@ const INITIAL_GRAPH_DATA = {
 export default function Home() {
   const [graphData, setGraphData] = useState(INITIAL_GRAPH_DATA);
   
-  // 2. NEW STATE FOR FILES & PREVIEW
-  // We need to track files here so we can pass them to the Modal
+  // State for files & preview
   const [files, setFiles] = useState<File[]>([]); 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  // Existing Graph Logic
+  // Graph Logic
   const handleDocumentAdded = (filename: string) => {
     setGraphData(prev => ({
         nodes: [...prev.nodes, { id: filename, group: 2 }],
@@ -29,43 +28,48 @@ export default function Home() {
     }));
   };
 
-  // 3. NEW HANDLER FOR CLICKING A FILE
+  // Preview Logic
   const handleFileClick = (file: File) => {
     setSelectedFile(file);
     setIsPreviewOpen(true);
   };
 
   return (
-    <main className="flex h-screen w-screen bg-black overflow-hidden">
-      {/* 1. Sidebar */}
+    // FIX 1: Use h-[100dvh] for mobile browsers to handle address bar properly
+    <main className="flex h-[100dvh] w-screen bg-black overflow-hidden relative">
+      
+      {/* 1. Sidebar (Handles its own mobile toggle) */}
       <Sidebar 
-        // Pass the new props so Sidebar can update the list and handle clicks
         files={files}
         setFiles={setFiles}
         onFileSelect={handleFileClick}
-        // Keep your existing graph updater
         onDocumentAdded={handleDocumentAdded} 
       />
 
       {/* 2. Main Visualization Area */}
-      <div className="flex-1 relative">
-        <div className="absolute top-4 left-4 z-10 pointer-events-none">
-            <h2 className="text-slate-400 text-sm font-mono">/ VIEW: KNOWLEDGE_GRAPH</h2>
+      <div className="flex-1 relative flex flex-col w-full h-full">
+        
+        {/* Graph View Label - Hidden on mobile to save space */}
+        <div className="absolute top-4 left-4 z-10 pointer-events-none hidden md:block">
+            <h2 className="text-slate-400 text-sm font-mono tracking-widest opacity-70">/ VIEW: KNOWLEDGE_GRAPH</h2>
         </div>
         
         {/* Graph Component */}
-        <KnowledgeGraph data={graphData} />
+        <div className="flex-1 w-full h-full">
+            <KnowledgeGraph data={graphData} />
+        </div>
         
         {/* 3. Floating Chat */}
         <ChatFloat />
       </div>
 
-      {/* 4. RENDER THE PREVIEW MODAL */}
+      {/* 4. Preview Modal */}
       <PDFPreviewModal 
         file={selectedFile} 
         isOpen={isPreviewOpen} 
         onClose={() => setIsPreviewOpen(false)} 
       />
+      
     </main>
   );
 }
