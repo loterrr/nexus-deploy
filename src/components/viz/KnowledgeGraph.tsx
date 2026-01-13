@@ -27,12 +27,17 @@ export default function KnowledgeGraph({ data }: { data: GraphData }) {
 
   if (!isClient) return null;
 
+  // SMART WIDTH CALCULATION:
+  // On Mobile (< 768px): Use the full screen width.
+  // On Desktop (>= 768px): Subtract 260px to make room for the Sidebar.
+  const graphWidth = width > 768 ? (width - 260) : width;
+
   return (
-    <div className="w-full h-full bg-slate-950">
+    <div className="w-full h-full bg-slate-950 flex justify-center items-center overflow-hidden">
       <ForceGraph2D
         ref={graphRef}
-        width={width ? width - 300 : 800} // Subtract sidebar width approximately
-        height={height}
+        width={graphWidth} 
+        height={height ? height : 600} // Fallback height if undefined
         graphData={data}
         nodeLabel="id"
         nodeColor={(node: any) => node.group === 1 ? '#06b6d4' : '#6366f1'} // Cyan for Root, Indigo for Papers
@@ -41,7 +46,7 @@ export default function KnowledgeGraph({ data }: { data: GraphData }) {
         // DRAW ARROWS
         linkDirectionalArrowLength={3.5}
         linkDirectionalArrowRelPos={1}
-        linkColor={() => '#475569'} // Slate-600 lines
+        linkColor={() => '#475569'} 
         
         // DRAW TEXT ON LINKS
         linkCanvasObjectMode={() => 'after'}
@@ -52,20 +57,17 @@ export default function KnowledgeGraph({ data }: { data: GraphData }) {
           const start = link.source;
           const end = link.target;
 
-          // Ignore unbound links
           if (typeof start !== 'object' || typeof end !== 'object') return;
 
           // Calculate label position
           const textPos = Object.assign({}, ...['x', 'y'].map(c => ({
-            [c]: start[c] + (end[c] - start[c]) / 2 // Center
+            [c]: start[c] + (end[c] - start[c]) / 2 
           })));
 
           const relLink = { x: end.x - start.x, y: end.y - start.y };
 
-          const maxTextLength = Math.sqrt(Math.pow(relLink.x, 2) + Math.pow(relLink.y, 2)) - LABEL_NODE_MARGIN * 2;
-
           let textAngle = Math.atan2(relLink.y, relLink.x);
-          // Maintain label vertical orientation for readability 
+          // Maintain label vertical orientation
           if (textAngle > Math.PI / 2) textAngle = -(Math.PI - textAngle);
           if (textAngle < -Math.PI / 2) textAngle = -(-Math.PI - textAngle);
 
@@ -78,7 +80,7 @@ export default function KnowledgeGraph({ data }: { data: GraphData }) {
           ctx.rotate(textAngle);
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillStyle = 'rgba(148, 163, 184, 1)'; // Slate-400 text
+          ctx.fillStyle = 'rgba(148, 163, 184, 1)'; 
           ctx.fillText(label, 0, 0);
           ctx.restore();
         }}
