@@ -1,16 +1,3 @@
-Based on our previous conversations, I know **Nexus** is your **Local-First RAG (Retrieval Augmented Generation)** application.
-
-Because it is "Local-First," this README focuses on **privacy, local model setup (e.g., Ollama/Llama.cpp), and offline capabilities**, which are the key selling points of your system.
-
-Here is the README tailored specifically for the **Nexus RAG System**.
-
----
-
-### **README.md Code**
-
-Copy the following directly into your repository.
-
-```markdown
 # Nexus
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg) ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![Status](https://img.shields.io/badge/status-alpha-orange)
