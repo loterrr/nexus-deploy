@@ -1,19 +1,30 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
-    // This creates a standalone folder for deployment (Standard for Vercel)
-    output: 'standalone', 
-    
-    // SAFETY NET: If you have small type errors, don't stop the deploy
-    typescript: {
-        ignoreBuildErrors: true,
-    },
-    eslint: {
-        ignoreDuringBuilds: true,
+    output: 'standalone',
+    typescript: { ignoreBuildErrors: true },
+    eslint: { ignoreDuringBuilds: true },
+
+    // 1. THIS FIXES THE VERCEL CHATBOT
+    async headers() {
+        return [
+            {
+                source: '/(.*)',
+                headers: [
+                    {
+                        key: 'Cross-Origin-Opener-Policy',
+                        value: 'same-origin',
+                    },
+                    {
+                        key: 'Cross-Origin-Embedder-Policy',
+                        value: 'require-corp',
+                    },
+                ],
+            },
+        ];
     },
 
     webpack: (config) => {
-        // This blocks the server-side libraries from breaking the client build
         config.resolve.alias = {
             ...config.resolve.alias,
             "sharp$": false,
