@@ -19,7 +19,7 @@ export default function ChatFloat() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isLoading]); // Scroll on new messages OR while loading tokens
+  }, [messages, isLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,11 +49,12 @@ export default function ChatFloat() {
     }
   };
 
+  // Minimized State (Button Only)
   if (!isOpen) {
     return (
       <button 
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 bg-cyan-600 hover:bg-cyan-500 text-white p-4 rounded-full shadow-lg transition-all z-50 animate-bounce-subtle"
+        className="fixed bottom-6 right-6 md:bottom-8 md:right-8 bg-cyan-600 hover:bg-cyan-500 text-white p-4 rounded-full shadow-lg transition-all z-50 animate-bounce-subtle"
       >
         <Bot className="w-6 h-6" />
       </button>
@@ -61,10 +62,17 @@ export default function ChatFloat() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 w-[450px] h-[700px] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col overflow-hidden z-50">
+    // RESPONSIVE CONTAINER:
+    // Mobile: bottom-2, left-2, right-2, height 80vh (Full width floating card)
+    // Desktop (md): bottom-6, right-6, width 450px, height 700px (Fixed corner widget)
+    <div className={clsx(
+        "fixed bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col overflow-hidden z-50 transition-all duration-300",
+        "bottom-2 left-2 right-2 h-[80vh]", 
+        "md:bottom-6 md:right-6 md:left-auto md:w-[450px] md:h-[700px]"
+    )}>
       
       {/* Header */}
-      <div className="bg-slate-800 p-4 flex justify-between items-center border-b border-slate-700 shadow-sm">
+      <div className="bg-slate-800 p-4 flex justify-between items-center border-b border-slate-700 shadow-sm shrink-0">
         <div className="flex items-center gap-3">
             <div className={`w-2.5 h-2.5 rounded-full ${isModelLoading ? 'bg-yellow-500 animate-pulse' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]'}`} />
             <div className="flex flex-col">
@@ -147,7 +155,7 @@ export default function ChatFloat() {
       </div>
 
       {/* Input Area */}
-      <form onSubmit={handleSubmit} className="p-4 bg-slate-800 border-t border-slate-700 flex gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.2)]">
+      <form onSubmit={handleSubmit} className="p-4 bg-slate-800 border-t border-slate-700 flex gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.2)] shrink-0">
         <input
           type="text"
           value={input}
