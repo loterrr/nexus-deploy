@@ -1,4 +1,4 @@
-# Nexus
+it# Nexus
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg) ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![Status](https://img.shields.io/badge/status-alpha-orange)
 
@@ -148,12 +148,3 @@ Contributions are welcome! Please look at the `issues` tab for "good first issue
 ## 📄 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
-
-```
-
-### **Recommended Next Step**
-Since this is a RAG system, the **"Tech Stack"** section is critical.
-
-**Would you like me to generate a `requirements.txt` file** that matches this README (including libraries like `langchain`, `chromadb`, `pypdf`, etc.) so users can actually run the installation step?
-
-```
