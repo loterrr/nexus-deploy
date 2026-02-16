@@ -1,51 +1,135 @@
-// src/services/vectorStore.ts
+'use client';
+
 import { v4 as uuidv4 } from 'uuid';
-import { pipeline, env } from '@xenova/transformers';
+import type { Pipeline } from '@xenova/transformers';
+import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { extractTextWithPages, PageText } from './pdfParser';
 
-// Skip local model checks since we are running in the browser
-env.allowLocalModels = false;
-env.useBrowserCache = true;
+interface VectorStoreDB extends DBSchema {
+  'vector-store': {
+    key: string;
+    value: DocumentChunk;
+    indexes: { 'by-source': string };
+  };
+}
 
-// --- Types ---
+const DB_NAME = 'the-archive-rag-db';
+const DB_VERSION = 1;
+const STORE_NAME = 'vector-store';
+
+
+let pipeline: any = null;
+let env: any = null;
+let transformersLoaded = false;
+
+async function loadTransformers() {
+  if (transformersLoaded) {
+    return;
+  }
+
+  if (typeof window === 'undefined') {
+    throw new Error('Transformers can only be loaded in the browser');
+  }
+
+  try {
+    console.log('Loading transformers library...');
+    const transformers = await import('@xenova/transformers');
+    pipeline = transformers.pipeline;
+    env = transformers.env;
+
+    env.allowLocalModels = false;
+    env.allowRemoteModels = true;
+    env.useBrowserCache = true;
+
+    transformersLoaded = true;
+    console.log('Transformers library loaded successfully');
+  } catch (error) {
+    console.error('Failed to load transformers library:', error);
+    throw error;
+  }
+}
+
 export interface DocumentChunk {
   id: string;
   content: string;
   metadata: {
     source: string;
     chunkIdx: number;
+    pageNumber?: number;
+    textSnippet?: string;
   };
+  embedding?: number[];
 }
 
 export interface SearchResultItem {
-  content: string;
+  doc: DocumentChunk;
   score: number;
-  source: string;
 }
 
-// --- Configuration ---
-const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2'; 
+const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
+const CHUNK_SIZE = 500;
+const CHUNK_OVERLAP = 50;
 
 export class VectorStore {
   private static instance: VectorStore;
   private documents: DocumentChunk[] = [];
-  private embedder: any = null;
-  private isReady: boolean = false;
+  private embedder: Pipeline | null = null;
+  private isReady = false;
+  private db: IDBPDatabase<VectorStoreDB> | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
-  public static getInstance(): VectorStore {
+  static getInstance(): VectorStore {
     if (!VectorStore.instance) {
       VectorStore.instance = new VectorStore();
     }
     return VectorStore.instance;
   }
 
+  private async initDB() {
+    if (this.db) return;
+    try {
+      this.db = await openDB<VectorStoreDB>(DB_NAME, DB_VERSION, {
+        upgrade(db) {
+          const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+          store.createIndex('by-source', 'metadata.source');
+        },
+      });
+      console.log('IndexedDB initialized');
+    } catch (err) {
+      console.error('Failed to init IndexedDB', err);
+    }
+  }
+
   async init() {
     if (this.isReady) return;
 
+
+    if (typeof window === 'undefined') {
+      throw new Error('VectorStore can only be initialized on the client side');
+    }
+
     try {
       console.log("Initializing VectorStore...");
-      
+
+      await this.initDB();
+
+
+      if (this.db) {
+        const storedDocs = await this.db.getAll(STORE_NAME);
+        if (storedDocs && storedDocs.length > 0) {
+          this.documents = storedDocs;
+          console.log(`Loaded ${storedDocs.length} chunks from IndexedDB`);
+        }
+      }
+
+
+      await loadTransformers();
+
+      if (!pipeline) {
+        throw new Error('Pipeline not available after loading transformers');
+      }
+
       this.embedder = await pipeline('feature-extraction', EMBEDDING_MODEL, {
         quantized: true,
       });
@@ -54,119 +138,190 @@ export class VectorStore {
       console.log("VectorStore initialized successfully.");
     } catch (error) {
       console.error("Failed to initialize VectorStore:", error);
-      throw new Error(`VectorStore initialization failed`);
+      throw error;
     }
   }
 
-  async addDocument(filename: string, fullText: string) {
+  async addDocument(filename: string, fullText: string, file?: File) {
     try {
       if (!this.embedder) await this.init();
 
-      // Chunking text
-      const chunks = this.chunkText(fullText, 500, 50); 
-      console.log(`Processing ${chunks.length} chunks for ${filename}...`);
+      if (!this.embedder) {
+        throw new Error('Embedder not initialized');
+      }
 
-      if (chunks.length === 0) throw new Error("PDF resulted in no text content");
+      let pageTexts: PageText[] = [];
 
+
+      if (file) {
+        pageTexts = await extractTextWithPages(file);
+      }
+
+      const chunks = this.chunkText(fullText, CHUNK_SIZE, CHUNK_OVERLAP);
       const newDocuments: DocumentChunk[] = [];
 
-      for (let i = 0; i < chunks.length; i++) {
-          const chunk = chunks[i];
-          if (!chunk || chunk.trim().length === 0) continue;
-          
-          newDocuments.push({
-            id: uuidv4(),
-            content: chunk,
-            metadata: { source: filename, chunkIdx: i }
+      let charOffset = 0;
+      const pageOffsets: { page: number; start: number; end: number }[] = [];
+
+      if (pageTexts.length > 0) {
+        let offset = 0;
+        for (const pt of pageTexts) {
+          pageOffsets.push({
+            page: pt.pageNumber,
+            start: offset,
+            end: offset + pt.text.length
           });
+          offset += pt.text.length + 1;
+        }
+      }
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const output = await this.embedder(chunk, { pooling: 'mean', normalize: true });
+        const embedding = Array.from(output.data as Float32Array);
+
+
+        let pageNumber = 1;
+        if (pageOffsets.length > 0) {
+          const chunkStart = charOffset;
+          const matchedPage = pageOffsets.find(
+            po => chunkStart >= po.start && chunkStart < po.end
+          );
+          pageNumber = matchedPage?.page || 1;
+        }
+
+        const doc: DocumentChunk = {
+          id: uuidv4(),
+          content: chunk,
+          metadata: {
+            source: filename,
+            chunkIdx: i,
+            pageNumber,
+            textSnippet: chunk.slice(0, 100)
+          },
+          embedding
+        };
+
+        newDocuments.push(doc);
+        charOffset += chunk.length - CHUNK_OVERLAP;
+
+
+        if (this.db) {
+          await this.db.put(STORE_NAME, doc);
+        }
       }
 
       this.documents.push(...newDocuments);
-      console.log(`Indexed ${filename} successfully (${newDocuments.length} chunks).`);
+      console.log(`Added ${chunks.length} chunks from ${filename}`);
     } catch (error) {
-      console.error(`Error adding document ${filename}:`, error);
+      console.error("Error adding document:", error);
       throw error;
     }
+  }
+
+  async removeDocument(filename: string): Promise<void> {
+    const beforeCount = this.documents.length;
+
+    const docsToRemove = this.documents.filter(doc => doc.metadata.source === filename);
+    this.documents = this.documents.filter(
+      (doc) => doc.metadata.source !== filename
+    );
+
+
+    if (this.db) {
+      const tx = this.db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      for (const doc of docsToRemove) {
+        await store.delete(doc.id);
+      }
+      await tx.done;
+    }
+
+    const removed = beforeCount - this.documents.length;
+    console.log(`Removed ${removed} chunks from ${filename}`);
+  }
+
+  async clearStore(): Promise<void> {
+    this.documents = [];
+    if (this.db) {
+      await this.db.clear(STORE_NAME);
+    }
+    console.log("VectorStore cleared.");
   }
 
   async search(query: string, limit: number = 3): Promise<SearchResultItem[]> {
     try {
       if (!this.embedder) await this.init();
 
-      if (this.documents.length === 0) return [];
+      if (!this.embedder) {
+        throw new Error('Embedder not initialized');
+      }
 
-      console.log(`Searching ${this.documents.length} chunks for: "${query}"`);
+      const output = await this.embedder(query, { pooling: 'mean', normalize: true });
+      const queryVector = Array.from(output.data as Float32Array);
 
-      // 1. Embed Query
-      const queryOutput = await this.embedder(query, { pooling: 'mean', normalize: true });
-      const queryVector = Array.from(queryOutput.data as Float32Array);
-
-      // 2. Embed & Score Documents
-      const results: Array<{ doc: DocumentChunk; score: number }> = [];
+      const results: SearchResultItem[] = [];
 
       for (const doc of this.documents) {
-          // Note: In a real production app, we would cache these document embeddings 
-          // instead of regenerating them on every search. For this demo, this is fine.
-          const docOutput = await this.embedder(doc.content, { pooling: 'mean', normalize: true });
-          const docVector = Array.from(docOutput.data as Float32Array);
+        if (!doc.embedding) {
+          console.warn(`Document ${doc.id} missing embedding, skipping`);
+          continue;
+        }
 
-          const similarity = this.cosineSimilarity(queryVector, docVector);
-          results.push({ doc, score: similarity });
+        const similarity = this.cosineSimilarity(queryVector, doc.embedding);
+        results.push({ doc, score: similarity });
       }
 
-      // 3. Sort by Score
       results.sort((a, b) => b.score - a.score);
-
-      // --- CRITICAL FIX: LOG SCORES AND REMOVE STRICT THRESHOLD ---
-      if (results.length > 0) {
-          console.log(`Top Match Score: ${results[0].score.toFixed(4)}`);
-          console.log(`Worst Match Score: ${results[results.length-1].score.toFixed(4)}`);
-      }
-
-      // Return the top 3 results REGARDLESS of score (Fallback mechanism)
-      const topResults = results.slice(0, limit).map(r => ({
-        content: r.doc.content,
-        score: r.score,
-        source: r.doc.metadata.source
-      }));
-
-      console.log(`Returning ${topResults.length} chunks to Chatbot.`);
-      return topResults;
-
+      return results.slice(0, limit);
     } catch (error) {
-      console.error("Search error:", error);
+      console.error("Error during search:", error);
       return [];
     }
   }
 
+  getAllDocuments(): DocumentChunk[] {
+    return this.documents;
+  }
+
+  getUniqueFilenames(): string[] {
+    const filenames = new Set<string>();
+    for (const doc of this.documents) {
+      filenames.add(doc.metadata.source);
+    }
+    return Array.from(filenames);
+  }
+
+  private chunkText(text: string, chunkSize: number, overlap: number): string[] {
+    if (!text || text.trim().length === 0) return [];
+
+    const chunks: string[] = [];
+    let start = 0;
+
+    while (start < text.length) {
+      const end = Math.min(start + chunkSize, text.length);
+      chunks.push(text.slice(start, end));
+      start += chunkSize - overlap;
+    }
+
+    return chunks;
+  }
+
   private cosineSimilarity(a: number[], b: number[]): number {
+    if (a.length !== b.length) return 0;
+
     let dotProduct = 0;
     let normA = 0;
     let normB = 0;
+
     for (let i = 0; i < a.length; i++) {
       dotProduct += a[i] * b[i];
       normA += a[i] * a[i];
       normB += b[i] * b[i];
     }
-    return (normA === 0 || normB === 0) ? 0 : dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-  }
 
-  private chunkText(text: string, chunkSize: number, overlap: number): string[] {
-    const chunks: string[] = [];
-    let start = 0;
-    while (start < text.length) {
-      const end = start + chunkSize;
-      let chunk = text.slice(start, end);
-      // Try to break at a space
-      const lastSpace = chunk.lastIndexOf(' ');
-      if (lastSpace > chunkSize * 0.8) {
-          chunk = chunk.slice(0, lastSpace);
-          start += lastSpace + 1 - overlap;
-      } else {
-          start += chunkSize - overlap;
-      }
-      chunks.push(chunk.trim());
-    }
-    return chunks.filter(c => c.length > 0);
+    if (normA === 0 || normB === 0) return 0;
+
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 }

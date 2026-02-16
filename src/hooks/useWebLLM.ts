@@ -10,10 +10,12 @@ export type Message = {
 };
 
 export function useWebLLM() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'assistant', content: 'Hello! I\'m The Archive, your research paper assistant. Upload a PDF document and I\'ll help you analyze, summarize, and understand its contents. I focus exclusively on your uploaded research materials.' }
+  ]);
   const [isLoading, setIsLoading] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(true);
-  const [progress, setProgress] = useState<string>('Initializing GPU...');
+  const [progress, setProgress] = useState<string>('Initializing System...');
   const [error, setError] = useState<string | null>(null);
 
   const engineRef = useRef<MLCEngineInterface | null>(null);
@@ -25,7 +27,6 @@ export function useWebLLM() {
       initializingRef.current = true;
 
       try {
-        console.log("Loading GPU Model:", SELECTED_MODEL);
         const engine = await CreateMLCEngine(SELECTED_MODEL, {
           initProgressCallback: (report: InitProgressReport) => {
             setProgress(report.text);
@@ -35,11 +36,10 @@ export function useWebLLM() {
 
         engineRef.current = engine;
         setIsModelLoading(false);
-        setProgress("GPU Ready.");
-      } catch (err: any) {
-        console.error("GPU Load Failed:", err);
-        setError("GPU Error: " + err.message);
-        setIsModelLoading(false);
+        setProgress("Ready.");
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        console.error('Error:', error.message);
       }
     };
 
@@ -49,36 +49,57 @@ export function useWebLLM() {
   const onChat = useCallback(async (userMessage: string, context?: string) => {
     if (!engineRef.current) return;
     setIsLoading(true);
+
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
 
     try {
-      const systemPrompt = context 
-        ? `You are an expert research assistant.
-INSTRUCTIONS:
-1. Answer the user's question using ONLY the provided context below. Do not use outside knowledge.
-2. If the answer is not in the context, politely state that the information is missing.
-3. Format your response using clear Markdown:
-   - Use **bold** for key concepts.
-   - Use bullet points for lists.
-   - Use ### Headers to organize long answers.
-4. Keep your tone professional, accurate, and concise.
+      const systemPrompt = `You are The Archive, a specialized research paper assistant. You ONLY help with academic research, thesis work, and document analysis based on uploaded PDFs.
 
-CONTEXT:
-${context}`
-        : `You are an expert AI assistant. 
-INSTRUCTIONS:
-1. Provide smart, accurate, and well-reasoned answers.
-2. Format your response using clear Markdown (**bold**, lists, headers).
-3. Be concise and professional.`;
+**Your Scope (ONLY answer questions about):**
+- Summarizing uploaded research papers and documents
+- Explaining concepts FROM the provided document context
+- Comparing and analyzing content between uploaded documents
+- Helping with citations and references from uploaded sources
+- Answering questions that can be answered using the uploaded documents
+- Thesis and academic writing assistance based on provided materials
+
+**Strict Rules:**
+1. **Documents Required:** If no document context is provided, politely ask the user to upload a PDF first. Say something like: "I need a document to help you with that. Please upload a PDF to get started."
+2. **Stay On Topic:** If asked about general knowledge, trivia, coding help, or anything unrelated to research/papers, politely decline. Say: "I'm designed specifically for research paper analysis. Please ask me about your uploaded documents."
+3. **Use Context Only:** Answer ONLY based on the provided document excerpts. Do not use general knowledge to fill gaps.
+4. **Cite Sources:** Always cite sources using [Source: filename.pdf] format.
+5. **Be Direct:** Do not apologize for limitations. Simply redirect to your purpose.
+6. **Formatting:** Use markdown for readability (headers, lists, bold text).
+
+**If context is empty or missing:** Respond with: "I don't have any documents to reference. Please upload a research paper or document, and I'll be happy to help you analyze it."
+
+**If the question is off-topic:** Respond with: "I'm your research paper assistant, focused on helping you understand and analyze your uploaded documents. How can I help with your research materials?"`;
+
+      const finalUserMessage = context
+        ? `**Reference Context:**
+\`\`\`
+${context}
+\`\`\`
+
+**User Query:** "${userMessage}"
+
+**Instructions:**
+Answer the User Query using ONLY the Reference Context above.
+- If the context supports the answer, provide it with citations [Source: filename].
+- If the context does not contain the answer, say so clearly. Do NOT use general knowledge.`
+        : `**User Query:** "${userMessage}"
+
+**No documents uploaded.** Politely inform the user that you need uploaded documents to assist them with research-related queries.`;
 
       const chunks = await engineRef.current.chat.completions.create({
         messages: [
-            { role: "system", content: systemPrompt },
-            ...messages, 
-            { role: "user", content: userMessage }
+          { role: "system", content: systemPrompt },
+          ...messages.slice(-4),
+          { role: "user", content: finalUserMessage }
         ],
-        temperature: 0.5,
-        stream: true, 
+        temperature: 0.3,
+        max_tokens: 2048,
+        stream: true,
       });
 
       let fullResponse = "";
@@ -101,5 +122,5 @@ INSTRUCTIONS:
     }
   }, [messages]);
 
-  return { messages, isLoading, isModelLoading, progress, error, onChat };
+  return { messages, isLoading, isModelLoading, progress, error, onChat, engine: engineRef.current };
 }

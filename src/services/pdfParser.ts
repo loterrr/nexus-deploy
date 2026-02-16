@@ -1,20 +1,29 @@
-// src/services/pdfParser.ts
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Point to the worker we copied to /public in Phase 1
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
-export async function extractTextFromPDF(file: File): Promise<string> {
+export interface PageText {
+  pageNumber: number;
+  text: string;
+}
+
+export async function extractTextWithPages(file: File): Promise<PageText[]> {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  
-  let fullText = '';
+
+  const pages: PageText[] = [];
 
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
     const pageText = textContent.items.map((item: any) => item.str).join(' ');
-    fullText += pageText + '\n';
+    pages.push({ pageNumber: i, text: pageText });
   }
-  return fullText;
+
+  return pages;
+}
+
+export async function extractTextFromPDF(file: File): Promise<string> {
+  const pages = await extractTextWithPages(file);
+  return pages.map(p => p.text).join('\n');
 }

@@ -1,5 +1,5 @@
 {
-  "name": "nexus-local-rag",
+  "name": "the-archive-local-rag",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,7 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "setup:worker": "cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "setup:worker": "cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.80",
@@ -16,6 +25,7 @@
     "@xenova/transformers": "^2.17.2",
     "clsx": "^2.1.1",
     "framer-motion": "^11.18.2",
+    "idb": "^8.0.3",
     "lucide-react": "^0.344.0",
     "next": "^14.2.35",
     "pdfjs-dist": "^4.10.38",
@@ -30,6 +40,9 @@
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.19.28",
     "@types/react": "^18.3.27",
     "@types/react-dom": "^18",
@@ -37,8 +50,13 @@
     "autoprefixer": "^10.4.23",
     "eslint": "^9.39.2",
     "eslint-config-next": "16.1.1",
+    "husky": "^9.1.7",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
+    "lint-staged": "^16.2.7",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5"
+    "ts-jest": "^29.4.6",
+    "typescript": "5.9.3"
   }
 }
