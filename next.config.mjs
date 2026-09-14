@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    images: {
+        unoptimized: true,
+    },
     webpack: (config, { isServer }) => {
         config.resolve.alias = {
             ...config.resolve.alias,
@@ -24,7 +27,7 @@ const nextConfig = {
                 headers: [
                     {
                         key: 'Content-Security-Policy',
-                        value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; frame-src 'self' blob:; connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co https://cdn.jsdelivr.net https://raw.githubusercontent.com; img-src 'self' data: blob:;"
+                        value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; frame-src 'self' blob:; connect-src 'self' http://localhost:11434 https://huggingface.co https://*.huggingface.co https://*.hf.co https://cdn.jsdelivr.net https://raw.githubusercontent.com; img-src 'self' data: blob:;"
                     },
                     {
                         key: 'X-Content-Type-Options',

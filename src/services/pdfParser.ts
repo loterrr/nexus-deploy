@@ -1,4 +1,5 @@
 import * as pdfjsLib from 'pdfjs-dist';
+import { sanitizePDFText } from '@/lib/sanitize';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
@@ -16,8 +17,11 @@ export async function extractTextWithPages(file: File): Promise<PageText[]> {
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
-    const pageText = textContent.items.map((item: any) => item.str).join(' ');
-    pages.push({ pageNumber: i, text: pageText });
+    const pageText = textContent.items
+      .map((item: any) => ('str' in item ? item.str : ''))
+      .filter(Boolean)
+      .join(' ');
+    pages.push({ pageNumber: i, text: sanitizePDFText(pageText) });
   }
 
   return pages;

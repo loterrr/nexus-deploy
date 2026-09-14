@@ -5,5 +5,9 @@
     },
     "typescript.tsdk": "node_modules/typescript/lib",
     "typescript.preferences.importModuleSpecifier": "relative",
-    "files.eol": "\n"
+    "files.eol": "\n",
+    "css.lint.unknownAtRules": "ignore",
+    "files.associations": {
+        "*.css": "tailwindcss"
+    }
 }

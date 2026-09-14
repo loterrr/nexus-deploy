@@ -5,6 +5,7 @@ const config: Config = {
     testEnvironment: 'jsdom',
     setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
     moduleNameMapper: {
+        '.*neuralWorkerClient.*': '<rootDir>/__mocks__/neuralWorkerClient',
         '^@/(.*)$': '<rootDir>/src/$1',
     },
     testMatch: [

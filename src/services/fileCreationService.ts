@@ -4,6 +4,12 @@ export interface FileCreationRequest {
     mimeType: string;
 }
 
+export interface FileCreationResult {
+    success: boolean;
+    filename?: string;
+    error?: string;
+}
+
 export class FileCreationService {
     static detectFileCreationIntent(message: string): boolean {
         const patterns = [
