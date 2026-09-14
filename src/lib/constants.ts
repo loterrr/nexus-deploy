@@ -1,6 +1,12 @@
-// ─── LLM Configuration ─────────────────────────────────────────
-export const OLLAMA_MODEL = "phi3.5";
-export const OLLAMA_MODEL_FALLBACK = "llama3.2";
+// ─── In-Browser WebLLM Configuration ───────────────────────────
+export const WEBLLM_MODEL = "Llama-3.2-1B-Instruct-q4f32_1-MLC";
+export const WEBLLM_MODEL_LABEL = "Llama-3.2-1B";
+export const WEBLLM_TEMPERATURE = 0.2;
+export const WEBLLM_MAX_TOKENS = 2048;
+
+// Deprecated Ollama aliases kept for backward compatibility
+export const OLLAMA_MODEL = WEBLLM_MODEL;
+export const OLLAMA_MODEL_FALLBACK = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
 export const OLLAMA_BASE_URL = "http://localhost:11434";
 export const OLLAMA_REPEAT_PENALTY = 1.1;
 export const OLLAMA_STOP_SEQUENCES = [

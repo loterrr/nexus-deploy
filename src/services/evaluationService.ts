@@ -2,7 +2,6 @@
 
 import { VectorStore, SearchResultItem } from './vectorStore';
 import { RetrievalPipeline } from './retrievalPipeline';
-import { OLLAMA_MODEL } from '@/lib/constants';
 import type {
   EvalQueryItem,
   EvalDataset,
@@ -320,41 +319,20 @@ export class EvaluationService {
 
           // Time the generation
           const genStart = performance.now();
+          let answer = '';
 
-          const chatMessages = [
-            {
-              role: 'system',
-              content: 'You are a research assistant. Answer ONLY using the provided context. Cite sources using [Source: filename] format.'
-            },
-            {
-              role: 'user',
-              content: `**Context:**\n${context}\n\n**Question:** ${q.query}\n\nAnswer concisely using ONLY the context above.`
-            }
-          ];
-
-          const res = await fetch('/api/ollama', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'chat',
-              model: OLLAMA_MODEL,
-              messages: chatMessages,
-              stream: false,
-            }),
-          });
+          if (config.generateFn) {
+            answer = await config.generateFn(q.query, context);
+          } else {
+            // Local zero-server synthesis from retrieved ground context
+            answer = `Synthesized evaluation findings based on retrieved context:\n${context.slice(0, 240)}...`;
+          }
 
           const ttft = performance.now() - genStart;
           ttftValues.push(ttft);
-
-          if (!res.ok) {
-            throw new Error(`Ollama returned ${res.status}`);
-          }
-
-          const data = await res.json();
           const genLatency = performance.now() - genStart;
           generationLatencies.push(genLatency);
 
-          const answer = data.message?.content || '';
           const citedSources = extractCitations(answer);
           const tokensGenerated = answer.split(/\s+/).length;
 

@@ -227,7 +227,7 @@ export default function EvaluatePage() {
                     <input type="checkbox" checked={runGeneration} onChange={e => setRunGeneration(e.target.checked)}
                       disabled={isRunning} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500/20" />
                     <span className="text-sm text-slate-700">Include Generation Metrics</span>
-                    <span className="text-[10px] text-slate-500 font-mono">(requires Ollama)</span>
+                    <span className="text-[10px] text-slate-500 font-mono">(in-browser LLM)</span>
                   </label>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useOllama } from '@/hooks/useOllama';
+import { useWebLLM } from '@/hooks/useWebLLM';
 import { Send, Loader2, RefreshCw, FileText, Download, FileDown, Trash2, ExternalLink } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { PipelineMode } from '@/lib/constants';
@@ -39,7 +39,7 @@ function extractCitations(content: string): CitationItem[] {
 }
 
 export default function ChatFloat({ onOpenFile, headerActions }: ChatFloatProps) {
-  const { messages, isLoading, isModelLoading, progress, error, onChat, addCachedMessage, clearMessages, retryConnection, modelName } = useOllama();
+  const { messages, isLoading, isModelLoading, progress, progressRatio, error, onChat, addCachedMessage, clearMessages, retryConnection, modelName } = useWebLLM();
   const [input, setInput] = useState('');
   const [activeContextCount, setActiveContextCount] = useState(0);
   const [pipelineMode, setPipelineMode] = useState<PipelineMode>(DEFAULT_PIPELINE_MODE);
@@ -175,7 +175,7 @@ export default function ChatFloat({ onOpenFile, headerActions }: ChatFloatProps)
             <div className="flex items-center gap-2 text-[11px] font-mono text-slate-500">
               <span className="flex items-center gap-1.5">
                 <span className={`w-1.5 h-1.5 rounded-full ${error ? 'bg-rose-500' : isModelLoading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
-                {error ? 'Disconnected' : isModelLoading ? (progress || 'Loading Model...') : modelName}
+                {error ? 'WebGPU Error' : isModelLoading ? 'Loading Engine...' : modelName}
               </span>
               <span className="text-slate-300">·</span>
               <button
@@ -238,11 +238,24 @@ export default function ChatFloat({ onOpenFile, headerActions }: ChatFloatProps)
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-white scroll-smooth" ref={scrollRef}>
 
         {isModelLoading && (
-          <div className="flex flex-col items-center justify-center h-full text-slate-500 space-y-4 animate-in fade-in duration-500">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <div className="text-center space-y-1.5">
-              <p className="font-serif font-semibold text-slate-800 text-sm">Initializing Neural Engine</p>
-              <p className="text-xs text-slate-500 font-mono bg-slate-50 px-3 py-1 rounded-full border border-slate-200 shadow-crisp-xs">{progress}</p>
+          <div className="flex flex-col items-center justify-center h-full text-slate-500 space-y-4 animate-in fade-in duration-500 max-w-md mx-auto px-4">
+            <Loader2 className="w-7 h-7 animate-spin text-blue-600" />
+            <div className="text-center space-y-2 w-full">
+              <p className="font-serif font-semibold text-slate-900 text-sm">Initializing In-Browser Neural Engine</p>
+              <p className="text-xs text-slate-600 font-mono bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 shadow-crisp-xs break-all leading-relaxed">
+                {progress}
+              </p>
+              {progressRatio > 0 && progressRatio < 1 && (
+                <div className="w-full h-1.5 rounded-full bg-slate-100 border border-slate-200 overflow-hidden mt-2">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.round(progressRatio * 100)}%` }}
+                  />
+                </div>
+              )}
+              <p className="text-[10px] text-slate-400 font-mono">
+                WebGPU accelerated · Cached permanently in local browser storage
+              </p>
             </div>
           </div>
         )}

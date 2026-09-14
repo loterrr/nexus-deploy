@@ -95,6 +95,7 @@ export interface EvalRunConfig {
   runGeneration: boolean;
   datasetId: string;
   pipelineMode: PipelineMode;
+  generateFn?: (query: string, context: string) => Promise<string>;
 }
 
 export interface EvalRunResult {

@@ -24,6 +24,7 @@
     ]
   },
   "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.85",
     "electron-serve": "^3.0.1",
     "electron-squirrel-startup": "^1.0.0"
   },
