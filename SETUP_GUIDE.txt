@@ -1,0 +1,241 @@
+================================================================================
+           NEXUS: THE ARCHIVE - SETUP & DEPLOYMENT GUIDE (ANOTHER DEVICE)
+              100% In-Browser Local RAG Research Assistant (WebGPU)
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+1. System Requirements & Hardware
+2. Fast Setup for Windows (Automated Batch File)
+3. Manual Setup (Windows, macOS, Linux)
+4. First Launch & In-Browser Model Caching
+5. How The Archive Works (Zero Ollama Architecture)
+6. Using The Archive (Documents, Search, Synthesis)
+7. Troubleshooting & WebGPU Configuration
+8. Frequently Asked Questions (FAQ)
+
+
+================================================================================
+1. SYSTEM REQUIREMENTS & HARDWARE
+================================================================================
+
+The Archive is designed to run 100% client-side inside modern web browsers using
+WebGPU hardware acceleration. No external background daemons (like Ollama), no
+Python environments, and no remote API keys are required.
+
+Hardware Requirements:
+  - Operating System: Windows 10/11, macOS (Apple Silicon or Intel), or Linux
+  - Memory (RAM): Minimum 8 GB (16 GB recommended)
+  - GPU: Integrated GPU (Intel Iris Xe, AMD Radeon 600M/700M, Apple M-series) 
+         or Dedicated GPU (Nvidia GTX/RTX, AMD Radeon RX)
+  - Free Disk Space: ~2 GB free disk space (app dependencies + cached weights)
+
+Software Requirements:
+  1. Node.js (Version 18.17.0 or higher, v20.x recommended)
+     Download: https://nodejs.org/ (Choose LTS version)
+  2. A Modern Web Browser with WebGPU support:
+     - Google Chrome (v113 or newer)
+     - Microsoft Edge (v113 or newer)
+     - Brave Browser
+     - Arc Browser
+     (Note: Ensure hardware acceleration is enabled in browser settings)
+  3. Git (Optional, if cloning via git)
+     Download: https://git-scm.com/
+
+
+================================================================================
+2. FAST SETUP FOR WINDOWS (AUTOMATED BATCH FILE)
+================================================================================
+
+If your other device is running Windows:
+
+STEP 1: Copy or Clone the repository to the new device:
+        git clone https://github.com/loterrr/nexus-deploy.git
+        (or download and extract the repository ZIP)
+
+STEP 2: Open the project folder (`nexus-deploy` or `nexus_v1`).
+
+STEP 3: Double-click `setup.bat`.
+        The automated wizard will:
+        - Verify Node.js and npm are present.
+        - Automatically install all required dependencies (`npm install`).
+        - Compile the Next.js production build (`npm run build`).
+        - Automatically open your default browser to http://localhost:3000
+          and start the application.
+
+DAILY LAUNCHING:
+After the initial setup is finished, you do not need to run `setup.bat` again.
+Simply double-click `start.bat` whenever you want to launch The Archive.
+
+
+================================================================================
+3. MANUAL SETUP (WINDOWS, MACOS, LINUX)
+================================================================================
+
+If you prefer using the terminal or are on macOS/Linux:
+
+STEP 1: Clone or extract the project:
+        git clone https://github.com/loterrr/nexus-deploy.git
+        cd nexus-deploy
+
+STEP 2: Verify your Node.js and npm installation:
+        node -v
+        npm -v
+        (Ensure node version is v18.17.0 or higher)
+
+STEP 3: Install dependencies:
+        npm install
+
+STEP 4: Build the production bundle:
+        npm run build
+
+STEP 5: Start the application:
+        npm start
+
+        (Alternatively, for development mode with live code reloading):
+        npm run dev
+
+STEP 6: Open your web browser and navigate to:
+        http://localhost:3000
+
+
+================================================================================
+4. FIRST LAUNCH & IN-BROWSER MODEL CACHING
+================================================================================
+
+When you open http://localhost:3000 for the first time:
+
+1. In-Browser Neural Engine Initialization:
+   - The app automatically initializes `@mlc-ai/web-llm` inside a dedicated
+     Web Worker (`webllm.worker.ts`) using your GPU via WebGPU.
+   - The UI thread remains completely responsive (60fps) at all times.
+
+2. One-Time Model Weight Download:
+   - The default model is `Llama-3.2-1B-Instruct-q4f32_1-MLC`.
+   - Size: ~880 MB in chunked, high-speed CDN transfers.
+   - You will see an Atelier Telemetry progress bar in the chat header displaying:
+     "Fetching param cache [x/22]: xxMB fetched. xx% completed..."
+   - These weights are saved PERMANENTLY into your browser's local IndexedDB.
+   
+3. Subsequent Launches:
+   - Once downloaded, the model will NEVER be downloaded again on that browser.
+   - It loads instantly from your local disk and functions 100% offline.
+
+
+================================================================================
+5. HOW THE ARCHIVE WORKS (ZERO OLLAMA ARCHITECTURE)
+================================================================================
+
+Unlike standard RAG implementations that require a 4GB+ Ollama installation
+running in the background on port 11434, The Archive is 100% self-contained:
+
++-------------------------------------------------------------------------+
+|                        CLIENT BROWSER ONLY                              |
+|                                                                         |
+|  +---------------------+   +---------------------+   +---------------+  |
+|  |   Document Parser   |   |   Transformers.js   |   |   BM25 Rank   |  |
+|  |   (PDF.js Client)   |-->|   Client Embeddings |-->|   RRF Fusion  |  |
+|  +---------------------+   +---------------------+   +---------------+  |
+|                                                              |          |
+|                                                              v          |
+|  +-------------------------------------------------------------------+  |
+|  |                 Dedicated Web Worker (WebGPU)                     |  |
+|  |              Llama-3.2-1B-Instruct-q4f32_1-MLC                    |  |
+|  |         IndexedDB Weight Cache + In-Browser Synthesis             |  |
+|  +-------------------------------------------------------------------+  |
+|                                                                         |
++-------------------------------------------------------------------------+
+
+Key Benefits:
+- Zero setup friction: No CLI commands, no Docker, no external services.
+- Total privacy: Your documents and queries never leave your computer.
+- Portable: Works on standard laptops with integrated graphics.
+
+
+================================================================================
+6. USING THE ARCHIVE
+================================================================================
+
+1. Left Pane - Document Explorer:
+   - Upload academic papers, research notes, or reports (.pdf, .txt, .md).
+   - Documents are parsed, chunked, and embedded into the local IndexedDB.
+   - Use the search bar to filter by keywords, authors, or topics.
+
+2. Center Pane - Scholarly Synthesis Atelier:
+   - Ask natural language research questions (e.g. "Synthesize findings on X").
+   - Real-time streaming generation grounded strictly in your documents.
+   - Citations appear as numbered superscripts ([1], [2]).
+   - Clicking any citation opens the exact source excerpt and provenance.
+
+3. Right Pane - Literature Inspector & Semantic Graph:
+   - Inspect document metadata, chunk text, and similarity scores.
+   - Switch to the "Semantic Graph" tab to visualize conceptual document
+     clusters and inter-document relationships in an interactive force graph.
+
+4. Benchmark Suite (/evaluate):
+   - Navigate to http://localhost:3000/evaluate to run automated RAG accuracy,
+     MRR, hit-rate, and generation quality benchmarks.
+
+
+================================================================================
+7. TROUBLESHOOTING & WEBGPU CONFIGURATION
+================================================================================
+
+Q1: What if the browser says "WebGPU not detected / not supported"?
+    Solution:
+    1. Ensure your browser is up to date (Chrome/Edge v113+).
+    2. Check if hardware acceleration is enabled:
+       - Chrome/Edge: Settings -> System -> "Use graphics acceleration when available" (Toggle ON).
+    3. Test your WebGPU support by visiting: https://webgpureport.org/
+    4. On certain Windows/Linux setups, you can force-enable WebGPU in Chrome:
+       - Type `chrome://flags` in your address bar.
+       - Search for "Unsafe WebGPU" or "WebGPU Developer Features".
+       - Set to "Enabled" and relaunch browser.
+
+Q2: "Port 3000 is already in use" error when running `npm start`:
+    Solution:
+    - Another process is using port 3000.
+    - Windows: Run `netstat -ano | findstr :3000` to find the PID, then kill it:
+      `taskkill /PID <PID_NUMBER> /F`
+    - Or run Next.js on a different port:
+      `npm start -- -p 3001` or `npm run dev -- -p 3001`
+
+Q3: Initial model download appears stuck:
+    Solution:
+    - Ensure your device has an active internet connection for the first download.
+    - The model is downloaded in 22 small shards from HuggingFace CDN.
+    - Check browser Developer Tools (F12 -> Console) for any network blocks
+      (e.g., ad-blocker or corporate firewall).
+
+Q4: How do I clear cached model weights to re-download?
+    Solution:
+    - In Chrome/Edge: Press F12 -> Go to "Application" tab.
+    - Under "Storage", expand "IndexedDB".
+    - Delete the `webllm` database and reload the page.
+
+
+================================================================================
+8. FREQUENTLY ASKED QUESTIONS (FAQ)
+================================================================================
+
+Q: Can I use this completely offline?
+A: YES! Once you have run the initial setup and loaded the page once (so the
+   model weights and embeddings are cached in IndexedDB), you can disconnect
+   from the internet completely. The app, search engine, and LLM will continue
+   running 100% offline.
+
+Q: Do I need an Nvidia graphics card?
+A: NO! WebGPU runs across almost all modern graphics hardware:
+   - Intel Core i5/i7/i9 with Iris Xe or Intel UHD Graphics
+   - AMD Ryzen with Radeon Graphics
+   - Apple Silicon M1, M2, M3, M4 Macs
+   - Dedicated Nvidia and AMD graphics cards
+
+Q: Where are my uploaded documents stored?
+A: All documents, parsed chunks, embeddings, and chat history are stored inside
+   your browser's IndexedDB on your local hard drive. Nothing is uploaded to
+   any cloud or third-party server.
+
+================================================================================
+                      Enjoy using Nexus: The Archive!
+================================================================================
