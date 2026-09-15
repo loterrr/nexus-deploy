@@ -23,22 +23,38 @@ let globalEngineInstance: MLCEngineInterface | null = null;
 let globalEnginePromise: Promise<MLCEngineInterface> | null = null;
 
 export function useWebLLM() {
-  const [messages, setMessages] = useState<Message[]>(() => {
-    if (typeof window !== 'undefined') {
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'assistant', content: INITIAL_GREETING },
+  ]);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Restore saved chat history safely after mount to prevent SSR hydration mismatch
+  useEffect(() => {
+    try {
       const saved = localStorage.getItem('the_archive_chat_history');
       if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
-          }
-        } catch {
-          // ignore corrupted local storage
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
         }
       }
+    } catch {
+      // ignore corrupted local storage
+    } finally {
+      setIsHydrated(true);
     }
-    return [{ role: 'assistant', content: INITIAL_GREETING }];
-  });
+  }, []);
+
+  // Persist messages to localStorage whenever they update after initial client hydration
+  useEffect(() => {
+    if (isHydrated && messages.length > 0) {
+      try {
+        localStorage.setItem('the_archive_chat_history', JSON.stringify(messages));
+      } catch {
+        // ignore quota errors
+      }
+    }
+  }, [messages, isHydrated]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(true);

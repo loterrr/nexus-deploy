@@ -74,11 +74,6 @@ export default function ChatFloat({ onOpenFile, headerActions }: ChatFloatProps)
     return () => scrollElement.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem('the_archive_chat_history', JSON.stringify(messages));
-    }
-  }, [messages]);
 
   const exportChat = () => {
     const content = messages
