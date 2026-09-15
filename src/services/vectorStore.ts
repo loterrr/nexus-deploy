@@ -362,6 +362,93 @@ export class VectorStore {
   }
 
   /**
+   * Get all indexed chunks for a specific document.
+   */
+  getDocumentChunks(filename: string): DocumentChunk[] {
+    return this.documents.filter(doc => doc.metadata.source === filename);
+  }
+
+  /**
+   * Compute normalized centroid (mean) embedding for each unique document.
+   */
+  getDocumentCentroids(): Map<string, number[]> {
+    const centroids = new Map<string, { sum: number[]; count: number }>();
+
+    for (const doc of this.documents) {
+      if (!doc.embedding || doc.embedding.length === 0) continue;
+      const source = doc.metadata.source;
+      let entry = centroids.get(source);
+      if (!entry) {
+        entry = { sum: new Array(doc.embedding.length).fill(0), count: 0 };
+        centroids.set(source, entry);
+      }
+      for (let i = 0; i < doc.embedding.length; i++) {
+        entry.sum[i] += doc.embedding[i];
+      }
+      entry.count += 1;
+    }
+
+    const result = new Map<string, number[]>();
+    centroids.forEach((val, key) => {
+      if (val.count > 0) {
+        const avg = val.sum.map(v => v / val.count);
+        const norm = Math.sqrt(avg.reduce((s, x) => s + x * x, 0));
+        result.set(key, norm > 0 ? avg.map(x => x / norm) : avg);
+      }
+    });
+
+    return result;
+  }
+
+  /**
+   * Compute semantic relationships between documents based on cosine similarity of centroids.
+   */
+  computeDocumentRelations(minSimilarity: number = 0.50, maxLinksPerDoc: number = 3): { source: string; target: string; label: string; score: number }[] {
+    const centroids = this.getDocumentCentroids();
+    const filenames = Array.from(centroids.keys());
+    const links: { source: string; target: string; label: string; score: number }[] = [];
+    const addedPairs = new Set<string>();
+
+    for (let i = 0; i < filenames.length; i++) {
+      const docA = filenames[i];
+      const vecA = centroids.get(docA);
+      if (!vecA) continue;
+
+      const similarities: { target: string; score: number }[] = [];
+
+      for (let j = 0; j < filenames.length; j++) {
+        if (i === j) continue;
+        const docB = filenames[j];
+        const vecB = centroids.get(docB);
+        if (!vecB) continue;
+
+        const score = this.cosineSimilarity(vecA, vecB);
+        if (score >= minSimilarity) {
+          similarities.push({ target: docB, score });
+        }
+      }
+
+      similarities.sort((a, b) => b.score - a.score);
+      const topMatches = similarities.slice(0, maxLinksPerDoc);
+
+      for (const match of topMatches) {
+        const pairKey = [docA, match.target].sort().join(':::');
+        if (!addedPairs.has(pairKey)) {
+          addedPairs.add(pairKey);
+          links.push({
+            source: docA,
+            target: match.target,
+            label: `Match: ${(match.score * 100).toFixed(0)}%`,
+            score: match.score,
+          });
+        }
+      }
+    }
+
+    return links;
+  }
+
+  /**
    * Sentence-aware text chunking.
    * Splits on sentence boundaries first, then accumulates sentences into chunks
    * up to the target size. Overlap is achieved by including trailing sentences

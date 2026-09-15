@@ -59,8 +59,22 @@ export default function Home() {
         const newLinks: { source: string; target: string; label?: string }[] = [];
 
         filenames.forEach(name => {
-          newLinks.push({ source: 'The Archive Root', target: name, label: 'Restored' });
+          newLinks.push({ source: 'The Archive Root', target: name, label: 'Manuscript' });
         });
+
+        // Compute cross-document semantic relations from centroid embeddings
+        try {
+          const semanticRelations = store.computeDocumentRelations(0.40, 3);
+          for (const rel of semanticRelations) {
+            newLinks.push({
+              source: rel.source,
+              target: rel.target,
+              label: rel.label
+            });
+          }
+        } catch (err) {
+          console.warn("Could not compute semantic relations during hydrate:", err);
+        }
 
         setGraphData(prev => ({
           nodes: [...prev.nodes, ...newNodes],
@@ -98,30 +112,46 @@ export default function Home() {
     }
 
     const newNode = { id: filename, group: 2 };
-    const rootLink = { source: 'The Archive Root', target: filename, label: 'Upload' };
-    const newLinks = [rootLink];
 
     try {
       const store = VectorStore.getInstance();
-      const similarDocs = await store.searchDense(filename, 5);
-      const connections = similarDocs.filter(doc => doc.doc.metadata.source !== filename);
+      const allFilenames = store.getUniqueFilenames();
 
-      connections.slice(0, 2).forEach(match => {
-        newLinks.push({
-          source: filename,
-          target: match.doc.metadata.source,
-          label: `Match: ${(match.score * 100).toFixed(0)}%`
-        });
+      // Compute updated semantic relations across all active documents
+      const semanticRelations = store.computeDocumentRelations(0.40, 3);
+
+      setGraphData(prev => {
+        const existingNodeIds = new Set(prev.nodes.map(n => n.id));
+        const updatedNodes = existingNodeIds.has(filename)
+          ? prev.nodes
+          : [...prev.nodes, newNode];
+
+        // Root links for all manuscripts
+        const rootLinks = allFilenames.map(name => ({
+          source: 'The Archive Root',
+          target: name,
+          label: 'Manuscript'
+        }));
+
+        const semanticLinks = semanticRelations.map(rel => ({
+          source: rel.source,
+          target: rel.target,
+          label: rel.label
+        }));
+
+        return {
+          nodes: updatedNodes,
+          links: [...rootLinks, ...semanticLinks]
+        };
       });
 
     } catch (err) {
       console.warn("Could not calculate semantic links:", err);
+      setGraphData(prev => ({
+        nodes: [...prev.nodes, newNode],
+        links: [...prev.links, { source: 'The Archive Root', target: filename, label: 'Upload' }]
+      }));
     }
-
-    setGraphData(prev => ({
-      nodes: [...prev.nodes, newNode],
-      links: [...prev.links, ...newLinks]
-    }));
   };
 
   // Open file in side inspector (or modal on small screens)
@@ -172,7 +202,12 @@ export default function Home() {
       {/* Toggle Right Inspector Button */}
       {mainView === 'chat' && (
         <button
-          onClick={() => setIsInspectorOpen(!isInspectorOpen)}
+          onClick={() => {
+            if (!isInspectorOpen && !selectedFile && files.length > 0) {
+              setSelectedFile(files[0]);
+            }
+            setIsInspectorOpen(!isInspectorOpen);
+          }}
           className={clsx(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all shadow-crisp-xs",
             isInspectorOpen
@@ -249,7 +284,7 @@ export default function Home() {
       {/* Center Column: Synthesis Journal / Research Workspace */}
       <div className="flex-1 h-full relative bg-white overflow-hidden flex min-w-0">
         {/* Chat / Journal View */}
-        <div className={clsx("h-full w-full flex-1", mainView !== 'chat' && "hidden")}>
+        <div className={clsx("h-full flex-1 min-w-0 flex flex-col", mainView !== 'chat' && "hidden")}>
           <ErrorBoundary>
             <ChatPanel
               headerActions={renderActionControls}
@@ -289,11 +324,16 @@ export default function Home() {
         {mainView === 'chat' && (
           <PDFInspectorPanel
             file={selectedFile}
+            files={files}
             targetPage={targetPage}
             isOpen={isInspectorOpen}
             onClose={() => setIsInspectorOpen(false)}
             onExpandModal={() => setIsPreviewOpen(true)}
             onSwitchToGraph={() => setMainView('graph')}
+            onSelectFile={(f) => {
+              setSelectedFile(f);
+              setTargetPage(undefined);
+            }}
           />
         )}
       </div>
